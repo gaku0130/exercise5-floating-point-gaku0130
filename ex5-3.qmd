@@ -1,0 +1,256 @@
+---
+title: "Exercise 5.3 — Stationary Iterative Methods"
+subtitle: "Numerical Analysis 2026 — Lecture 5"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-tools: true
+    highlight-style: github
+execute:
+  echo: true
+  warning: false
+jupyter: python3
+---
+
+## Problem
+
+Implement two stationary iterative methods for solving
+
+$$
+Ax=b.
+$$
+
+At this point in the course, you are not expected to give a convergence
+analysis.  Instead, the goal is to understand how the Jacobi and
+Gauss-Seidel updates work, run them on prepared examples, and observe
+when their behavior is similar or different.
+
+In this report, you will:
+
+1. implement the Jacobi method,
+2. implement the Gauss-Seidel method,
+3. test both methods on the prepared systems below,
+4. compare the number of iterations and residual histories.
+
+AI use is permitted for debugging and explanation, but you must
+understand and explain your implementation.
+
+---
+
+## 1. Setup
+
+```{python}
+import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
+```
+
+---
+
+## 2. Jacobi Method
+
+Complete the function below.  In the Jacobi method, all components of
+$x^{(k+1)}$ are computed from the old vector $x^{(k)}$.
+
+```{python}
+def jacobi(A, b, x0=None, tol=1e-10, max_iter=500):
+    """
+    Solve Ax=b by the Jacobi method.
+
+    Returns
+    -------
+    x : numpy.ndarray
+        Approximate solution.
+    n_iter : int
+        Number of iterations performed.
+    residuals : numpy.ndarray
+        Residual norms ||b - Ax^(k)||.
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    n = len(b)
+    x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
+
+    # TODO:
+    # 1. Extract the diagonal of A.
+    # 2. Build the remainder R = A - diag(diagonal).
+    # 3. Iterate x_new = (b - R @ x) / diagonal.
+    # 4. Store residual norms.
+    # 5. Stop when ||x_new - x|| < tol.
+
+    pass
+```
+
+---
+
+## 3. Gauss-Seidel Method
+
+Complete the function below.  In the Gauss-Seidel method, the newest
+available values are used immediately within the same iteration.
+
+```{python}
+def gauss_seidel(A, b, x0=None, tol=1e-10, max_iter=500):
+    """
+    Solve Ax=b by the Gauss-Seidel method.
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    n = len(b)
+    x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
+    residuals = []
+
+    # TODO:
+    # For each iteration:
+    #   - copy the old vector
+    #   - update x[i] using new x[0],...,x[i-1] and old x[i+1],...,x[n-1]
+    #   - store ||b - A @ x||
+    #   - stop when ||x - x_old|| < tol
+
+    pass
+```
+
+---
+
+## 4. Prepared Test Matrices
+
+Use the following two systems.  In both cases, set `x_true = ones` and
+`b = A @ x_true`.
+
+The first matrix is diagonal.
+
+```{python}
+A_diagonal = np.diag([2.0, 3.0, 4.0, 5.0])
+```
+
+The second matrix has lower-triangular couplings.
+
+```{python}
+A_lower_triangular = np.array([
+    [4.0, 0.0, 0.0, 0.0],
+    [2.0, 4.0, 0.0, 0.0],
+    [1.0, 2.0, 4.0, 0.0],
+    [1.0, 1.0, 2.0, 4.0],
+])
+```
+
+The third matrix is also prepared for comparison.
+
+```{python}
+A_tridiagonal = np.array([
+    [4.0, 1.0, 0.0, 0.0],
+    [1.0, 4.0, 1.0, 0.0],
+    [0.0, 1.0, 4.0, 1.0],
+    [0.0, 0.0, 1.0, 4.0],
+])
+```
+
+---
+
+## 5. Experiment Helper
+
+For each experiment, report:
+
+- the number of iterations,
+- the final residual norm,
+- the relative error compared with `x_true`.
+
+You can use this helper function.
+
+```{python}
+def relative_error(x, x_true):
+    return LA.norm(x - x_true) / LA.norm(x_true)
+```
+
+When plotting residual histories, a semilog plot is convenient.
+
+```{python}
+# Example:
+# plt.semilogy(res_j, label="Jacobi")
+# plt.semilogy(res_gs, label="Gauss-Seidel")
+# plt.xlabel("iteration")
+# plt.ylabel("residual norm")
+# plt.legend()
+```
+
+---
+
+## 6. First Experiment
+
+Run both methods on `A_diagonal` and compare with
+`numpy.linalg.solve`.
+
+```{python}
+# A = A_diagonal
+# x_true = np.ones(A.shape[0])
+# b = A @ x_true
+# TODO: run jacobi(A, b)
+# TODO: run gauss_seidel(A, b)
+# TODO: compare with LA.solve(A, b)
+# TODO: print iteration counts and final residuals
+# TODO: plot the residual histories for this matrix
+```
+
+---
+
+## 7. Second Experiment
+
+Run both methods on `A_lower_triangular` and compare with
+`numpy.linalg.solve`.
+
+```{python}
+# A = A_lower_triangular
+# x_true = np.ones(A.shape[0])
+# b = A @ x_true
+# TODO: run the same experiment for A_lower_triangular.
+# TODO: plot the residual histories for this matrix
+```
+
+---
+
+## 8. Third Experiment
+
+Run both methods on `A_tridiagonal`, or replace it with another matrix of
+your choice.  Use the same experiment and describe what you observe.
+
+```{python}
+# A = A_tridiagonal
+# x_true = np.ones(A.shape[0])
+# b = A @ x_true
+# TODO: run the same experiment for A_tridiagonal or your own matrix.
+# TODO: plot the residual histories for this matrix
+```
+
+---
+
+## 9. Discussion
+
+Answer briefly.
+
+1. How are the Jacobi and Gauss-Seidel updates different?
+2. What did you observe for `A_diagonal`?
+3. What did you observe for `A_lower_triangular`?
+4. What did you observe for `A_tridiagonal` (or your third matrix)?
+   You have not studied convergence analysis yet, so it is enough to
+   discuss what you can see from the iteration counts and residual plots.
+5. In your experiments, did one method require fewer iterations?
+6. How do your observations relate to the difference between the two
+   update rules?
+
+> **Your answer:**
+>
+> *(write here)*
+
+---
+
+## AI Usage
+
+Check one:
+
+- [ ] I did not use AI.
+- [ ] I used AI for debugging / explanation only.
+- [ ] I used AI more substantially, and I verified the result myself.
+
+If you used AI, briefly describe how:
+
+> *(write here)*

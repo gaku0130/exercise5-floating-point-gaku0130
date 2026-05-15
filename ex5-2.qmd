@@ -1,0 +1,186 @@
+---
+title: "Exercise 5.2 — Direct Solvers: solve vs inv"
+subtitle: "Numerical Analysis 2026 — Lecture 5"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-tools: true
+    highlight-style: github
+execute:
+  echo: true
+  warning: false
+jupyter: python3
+---
+
+## Problem
+
+In this exercise, compare two ways to solve a linear system:
+
+$$
+Ax=b.
+$$
+
+Mathematically, the following two expressions represent the same answer:
+
+$$
+x=A^{-1}b.
+$$
+
+In numerical computation, however, we usually write
+`numpy.linalg.solve(A, b)` instead of explicitly forming the inverse
+matrix as `numpy.linalg.inv(A) @ b`.
+
+Use the well-conditioned and ill-conditioned matrices that you created
+in Ex 5.1.  Your goal is to compare these approaches in terms of:
+
+- computation time,
+- relative residual,
+- relative error of the solution,
+- matrix condition number,
+- and what these functions do internally.
+
+---
+
+## 1. Setup
+
+```{python}
+import time
+
+import numpy as np
+from numpy import linalg as LA
+```
+
+---
+
+## 2. Reuse Your Matrices from Ex 5.1
+
+Paste or import the matrix-generating function from Ex 5.1.
+
+```{python}
+# TODO: paste your make_matrix function from Ex 5.1.
+```
+
+Create the same four matrices:
+
+1. a well-conditioned $2\times 2$ matrix,
+2. an ill-conditioned $2\times 2$ matrix,
+3. a well-conditioned $10\times 10$ matrix,
+4. an ill-conditioned $10\times 10$ matrix.
+
+```{python}
+# TODO: create A2_good, A2_bad, A10_good, A10_bad.
+```
+
+Define helper functions.
+
+```{python}
+def relative_residual(A, x, b):
+    return LA.norm(b - A @ x) / LA.norm(b)
+
+def relative_error(x, x_true):
+    return LA.norm(x - x_true) / LA.norm(x_true)
+```
+
+---
+
+## 3. Compare `solve` and `inv`
+
+For each matrix, set `x_true = ones` and `b = A @ x_true`, then compute:
+
+- `x_solve = LA.solve(A, b)`,
+- `x_inv = LA.inv(A) @ b`,
+- computation time for each method,
+- matrix condition number `LA.cond(A)`,
+- relative residual,
+- relative error of the solution.
+
+```{python}
+# TODO: run the comparison for all matrices.
+# Hint:
+# start = time.perf_counter()
+# x_solve = LA.solve(A, b)
+# elapsed = time.perf_counter() - start
+```
+
+Present your results clearly. A printed table is enough.
+
+---
+
+## 4. Interpretation
+
+Answer the following questions.
+
+1. Which method was faster in your experiment?
+2. Which method gave a smaller relative residual?
+3. Which method gave a smaller relative error in the solution?
+4. How did the matrix condition number affect the results?
+5. Did a small residual always mean a small relative error in the solution?
+
+> **Your answer:**
+>
+> *(write here)*
+
+---
+
+## 5. Research Question
+
+Investigate what `numpy.linalg.solve(A, b)` and
+`numpy.linalg.inv(A) @ b` do internally.
+
+In your own words, summarize:
+
+1. what kind of matrix factorization or LAPACK routine is typically used
+   by `numpy.linalg.solve`,
+2. why explicitly computing the inverse matrix is usually unnecessary for
+   solving one linear system,
+3. why `solve(A, b)` is generally preferred over `inv(A) @ b`.
+
+> **Your answer:**
+>
+> *(write here)*
+
+---
+
+## Optional Extension: SciPy Solvers
+
+Investigate `scipy.linalg.solve`.
+For example, you can call it as
+
+```python
+import scipy.linalg as SLA
+
+x = SLA.solve(A, b, assume_a="gen")
+```
+
+Here, `assume_a` is a keyword argument that tells SciPy what kind of
+matrix `A` is assumed to be.
+
+Compare it with `numpy.linalg.solve` and answer:
+
+1. What additional options does `scipy.linalg.solve` provide?
+2. What is the role of `assume_a`?
+3. What happens when `assume_a="pos"` is used for a symmetric positive
+   definite matrix?
+4. When might `scipy.linalg.lu_factor` and `scipy.linalg.lu_solve` be
+   useful?
+
+You may include a small experiment if you want.
+
+> **Your answer:**
+>
+> *(optional; write here)*
+
+---
+
+## AI Usage
+
+Check one:
+
+- [ ] I did not use AI.
+- [ ] I used AI for debugging / explanation only.
+- [ ] I used AI more substantially, and I verified the result myself.
+
+If you used AI, briefly describe how:
+
+> *(write here)*

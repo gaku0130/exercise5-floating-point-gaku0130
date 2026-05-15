@@ -1,0 +1,260 @@
+---
+title: "Exercise 5.1 — Understanding Matrix Condition Numbers"
+subtitle: "Numerical Analysis 2026 — Lecture 5"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-tools: true
+    highlight-style: github
+execute:
+  echo: true
+  warning: false
+jupyter: python3
+---
+
+## Problem
+
+In this exercise, you will study the meaning of the 2-norm condition
+number of a matrix through both explanation and computation.  Throughout
+this exercise, "matrix condition number" means the 2-norm condition
+number $\operatorname{cond}_2(A)$.
+
+Your tasks are:
+
+- use a concrete $2\times 2$ matrix example to explain geometrically
+  what a large matrix condition number means
+  (hint: it may help to draw how a matrix transforms the unit circle or
+  the unit square $[0,1]^2$),
+- create well-conditioned and ill-conditioned $2\times 2$ matrices,
+- create $10\times 10$ matrices with good and bad matrix condition
+  numbers,
+- run the same perturbation experiment for those matrices and compare
+  how strongly the well-conditioned and ill-conditioned matrices amplify
+  input errors.
+
+You will reuse these matrices in Ex 5.2.
+
+---
+
+## 1. Setup
+
+```{python}
+import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
+```
+
+---
+
+## 2. Geometric Meaning of Matrix Condition Number
+
+Recall from the handout that condition numbers can be defined with
+respect to different matrix norms.  In this exercise, always use the
+2-norm condition number:
+
+$$
+\operatorname{cond}_2(A)
+=
+\|A\|_2\,\|A^{-1}\|_2
+=
+\frac{\sigma_{\max}(A)}{\sigma_{\min}(A)},
+$$
+
+where $\sigma_{\max}(A)$ and $\sigma_{\min}(A)$ are the largest and
+smallest singular values of $A$.  In NumPy, `LA.cond(A)` uses the 2-norm
+by default.
+
+For this exercise, focus on the following $2\times 2$ symmetric positive
+definite matrix:
+
+```{python}
+A_bad_example = np.array([
+    [2.0, 1.9],
+    [1.9, 2.0],
+])
+
+print("eigenvalues:", LA.eigvalsh(A_bad_example))
+print("matrix condition number:", LA.cond(A_bad_example))
+```
+
+Your task is to explain geometrically why this matrix has a large
+condition number.
+
+For the first task, you may draw how this matrix transforms either:
+
+- the unit circle, or
+- the unit square $[0,1]^2$.
+
+```{python}
+# Optional hint: visualize the transformation x -> A_bad_example @ x.
+# You may plot the original shape and transformed shape side by side.
+```
+
+Write your explanation in bullet points.  Your explanation should address
+the following questions without simply copying a formula:
+
+- What happens to the shape after applying $A$?
+- Does $A$ change all directions by roughly the same amount, or are some
+  directions changed much more than others?
+- How does this geometric behavior help explain why the matrix condition
+  number is large?
+- How would the picture look different for a well-conditioned matrix?
+
+> **Your answer:**
+>
+> - *(write here)*
+
+---
+
+## 3. Create Matrices with Good and Bad Matrix Condition Numbers
+
+Complete the function below.  It should create an $n\times n$ matrix
+whose 2-norm matrix condition number is approximately `condition_number`.
+
+Recall that the 2-norm condition number is defined by
+
+$$
+\operatorname{cond}_2(A)
+=
+\|A\|_2\,\|A^{-1}\|_2
+=
+\frac{\sigma_{\max}(A)}{\sigma_{\min}(A)},
+$$
+
+so it can be controlled directly through the singular values of $A$.
+
+The idea is to prescribe the singular values directly.  If
+
+$$
+A = Q_1 \Sigma Q_2^T
+$$
+
+where $Q_1$ and $Q_2$ are orthogonal matrices and $\Sigma$ is a diagonal
+matrix.  The diagonal entries of $\Sigma$ are the singular values of
+$A$:
+
+$$
+\Sigma = \operatorname{diag}(\sigma_1,\sigma_2,\ldots,\sigma_n).
+$$
+
+Therefore, for a $10\times 10$ matrix, you can choose 10 singular values
+whose largest value divided by the smallest value is the desired
+condition number.
+
+In the code below, `Q1` and `Q2` are made by applying QR decomposition to
+random matrices.  The `Q` factor returned by QR decomposition is
+orthogonal, so it can be used as $Q_1$ or $Q_2$.
+
+```{python}
+def make_matrix(n, condition_number, seed=2026):
+    rng = np.random.default_rng(seed)
+    Q1, _ = LA.qr(rng.normal(size=(n, n)))
+    Q2, _ = LA.qr(rng.normal(size=(n, n)))
+
+    # TODO:
+    # 1. Create singular values between condition_number and 1.
+    # 2. Return Q1 @ diag(singular_values) @ Q2.T.
+    #
+    # Hint:
+    # singular_values = np.geomspace(condition_number, 1.0, n)
+
+    pass
+```
+
+Use your function to create:
+
+1. a well-conditioned $2\times 2$ matrix,
+2. an ill-conditioned $2\times 2$ matrix,
+3. a well-conditioned $10\times 10$ matrix,
+4. an ill-conditioned $10\times 10$ matrix.
+
+```{python}
+# TODO: create four matrices.
+# Example names:
+# A2_good, A2_bad, A10_good, A10_bad
+```
+
+Check their 2-norm matrix condition numbers.
+
+```{python}
+# TODO: print LA.cond(A) for each matrix.
+```
+
+---
+
+## 4. Perturbation Experiment
+
+For each matrix, set
+
+$$
+x_* = (1,1,\ldots,1)^T
+$$
+
+and define
+
+$$
+b=Ax_*.
+$$
+
+Then add a small perturbation $\Delta b$ to $b$ and solve the perturbed
+system:
+
+$$
+A\widehat{x}=b+\Delta b.
+$$
+
+For each of the four matrices, compute:
+
+- relative perturbation in $b$,
+- relative error in the computed solution,
+- 2-norm matrix condition number of $A$,
+- amplification factor:
+
+$$
+\frac{\|\widehat{x}-x_*\|/\|x_*\|}
+{\|\Delta b\|/\|b\|}.
+$$
+
+Then compare the results across the four matrices.  In particular,
+check whether the ill-conditioned matrices produce larger amplification
+factors than the well-conditioned matrices.
+
+```{python}
+# TODO: run a perturbation experiment.
+# Hint:
+# rng = np.random.default_rng(2026)
+# db = 1e-8 * LA.norm(b) * rng.normal(size=n)
+# x_hat = LA.solve(A, b + db)
+```
+
+---
+
+## 5. Discussion
+
+Answer the following questions.
+
+1. Did the ill-conditioned matrices amplify the perturbation more than
+   the well-conditioned matrices?
+2. Was the effect visible for both the $2\times 2$ and $10\times 10$
+   examples?
+3. What did you learn about the meaning of the 2-norm condition number
+   of a matrix?
+
+> **Your answer:**
+>
+> *(write here)*
+
+---
+
+## AI Usage
+
+Check one:
+
+- [ ] I did not use AI.
+- [ ] I used AI for debugging / explanation only.
+- [ ] I used AI more substantially, and I verified the result myself.
+
+If you used AI, briefly describe how:
+
+> *(write here)*
