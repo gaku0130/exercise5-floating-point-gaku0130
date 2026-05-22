@@ -87,8 +87,43 @@ For the first task, you may draw how this matrix transforms either:
 - the unit square $[0,1]^2$.
 
 ```{python}
-# Optional hint: visualize the transformation x -> A_bad_example @ x.
-# You may plot the original shape and transformed shape side by side.
+A_good_example = np.array([
+    [1.2, 0.2],
+    [0.1, 1.1],
+])
+
+theta = np.linspace(0, 2 * np.pi, 200)
+circle = np.vstack([np.cos(theta), np.sin(theta)])
+square = np.vstack([
+    np.concatenate([np.linspace(0, 1, 50), np.ones(50), np.linspace(1, 0, 50), np.zeros(50)]),
+    np.concatenate([np.zeros(50), np.linspace(0, 1, 50), np.ones(50), np.linspace(1, 0, 50)])
+])
+
+transformed_circle_bad = A_bad_example @ circle
+transformed_square_bad = A_bad_example @ square
+transformed_circle_good = A_good_example @ circle
+transformed_square_good = A_good_example @ square
+
+print("cond(A_bad_example) =", LA.cond(A_bad_example))
+print("cond(A_good_example) =", LA.cond(A_good_example))
+
+fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+axes[0, 0].plot(circle[0], circle[1], '-k', linewidth=1)
+axes[0, 0].set_title('Unit circle')
+axes[0, 0].axis('equal')
+axes[0, 1].plot(transformed_circle_bad[0], transformed_circle_bad[1], '-r', linewidth=1)
+axes[0, 1].plot(transformed_circle_good[0], transformed_circle_good[1], '-b', linewidth=1)
+axes[0, 1].set_title('Bad (red) and good (blue) circle images')
+axes[0, 1].axis('equal')
+axes[1, 0].plot(square[0], square[1], '-k', linewidth=1)
+axes[1, 0].set_title('Unit square boundary')
+axes[1, 0].axis('equal')
+axes[1, 1].plot(transformed_square_bad[0], transformed_square_bad[1], '-r', linewidth=1)
+axes[1, 1].plot(transformed_square_good[0], transformed_square_good[1], '-b', linewidth=1)
+axes[1, 1].set_title('Bad (red) and good (blue) square images')
+axes[1, 1].axis('equal')
+fig.tight_layout()
+plt.show()
 ```
 
 Write your explanation in bullet points.  Your explanation should address
@@ -103,7 +138,11 @@ the following questions without simply copying a formula:
 
 > **Your answer:**
 >
-> - *(write here)*
+> - $A_{\text{bad}}$ stretches the unit circle into a long, narrow ellipse.
+> - The transformed unit square becomes a thin parallelogram with one direction much longer than the other.
+> - Some directions are changed much more than others, so the matrix is very anisotropic.
+> - This geometric behavior means $\sigma_{\max}$ is much larger than $\sigma_{\min}$, which makes $\operatorname{cond}_2(A)$ large.
+> - A well-conditioned matrix would transform the circle into a shape that is closer to a circle and the square into a more balanced parallelogram.
 
 ---
 
@@ -159,7 +198,9 @@ def make_matrix(n, condition_number, seed=2026):
     # Hint:
     # singular_values = np.geomspace(condition_number, 1.0, n)
 
-    pass
+    singular_values = np.geomspace(condition_number, 1.0, n)
+    Sigma = np.diag(singular_values)
+    return Q1 @ Sigma @ Q2.T
 ```
 
 Use your function to create:
@@ -170,15 +211,15 @@ Use your function to create:
 4. an ill-conditioned $10\times 10$ matrix.
 
 ```{python}
-# TODO: create four matrices.
-# Example names:
-# A2_good, A2_bad, A10_good, A10_bad
-```
+A2_good = make_matrix(2, 2.0, seed=2026)
+A2_bad = make_matrix(2, 100.0, seed=2027)
+A10_good = make_matrix(10, 10.0, seed=2026)
+A10_bad = make_matrix(10, 10000.0, seed=2027)
 
-Check their 2-norm matrix condition numbers.
-
-```{python}
-# TODO: print LA.cond(A) for each matrix.
+print("cond(A2_good) =", LA.cond(A2_good))
+print("cond(A2_bad)  =", LA.cond(A2_bad))
+print("cond(A10_good)=", LA.cond(A10_good))
+print("cond(A10_bad) =", LA.cond(A10_bad))
 ```
 
 ---
@@ -221,11 +262,60 @@ check whether the ill-conditioned matrices produce larger amplification
 factors than the well-conditioned matrices.
 
 ```{python}
-# TODO: run a perturbation experiment.
-# Hint:
-# rng = np.random.default_rng(2026)
-# db = 1e-8 * LA.norm(b) * rng.normal(size=n)
-# x_hat = LA.solve(A, b + db)
+def perturbation_experiment(A, eps=1e-8, seed=2026):
+    n = A.shape[0]
+    x_star = np.ones(n)
+    b = A @ x_star
+    rng = np.random.default_rng(seed)
+    db = eps * LA.norm(b) * rng.normal(size=n)
+    x_hat = LA.solve(A, b + db)
+
+    rel_b = LA.norm(db) / LA.norm(b)
+    rel_x = LA.norm(x_hat - x_star) / LA.norm(x_star)
+    condA = LA.cond(A)
+    amplification = rel_x / rel_b
+    return {
+        "cond": condA,
+        "rel_b": rel_b,
+        "rel_x": rel_x,
+        "amplification": amplification,
+    }
+
+results = {
+    "A2_good": perturbation_experiment(A2_good, seed=2026),
+    "A2_bad": perturbation_experiment(A2_bad, seed=2027),
+    "A10_good": perturbation_experiment(A10_good, seed=2026),
+    "A10_bad": perturbation_experiment(A10_bad, seed=2027),
+}
+
+for name, res in results.items():
+    print(f"{name}: cond={res['cond']:.2e}, rel_b={res['rel_b']:.2e}, "
+          f"rel_x={res['rel_x']:.2e}, amp={res['amplification']:.2f}")
+
+fig, ax = plt.subplots(figsize=(8, 4))
+names = list(results.keys())
+amplifications = [results[name]["amplification"] for name in names]
+cond_values = [results[name]["cond"] for name in names]
+ax.bar(names, amplifications, color=["#4c72b0", "#dd8452", "#55a868", "#c44e52"])
+ax.set_yscale("log")
+ax.set_ylabel("Amplification factor")
+ax.set_title("Error amplification for well-conditioned and ill-conditioned matrices")
+for i, value in enumerate(amplifications):
+    ax.text(i, value * 1.1, f"{value:.1f}", ha="center", va="bottom", fontsize=9)
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.scatter(cond_values, amplifications, color="black")
+for name, cond, amp in zip(names, cond_values, amplifications):
+    ax.text(cond, amp, name, fontsize=9, ha="right", va="bottom")
+ax.set_xscale("log")
+ax.set_ylabel("Amplification factor")
+ax.set_xlabel("Matrix condition number")
+ax.set_title("Amplification factor versus matrix condition number")
+ax.grid(True, which="both", linestyle=":")
+plt.tight_layout()
+plt.show()
 ```
 
 ---
@@ -243,7 +333,9 @@ Answer the following questions.
 
 > **Your answer:**
 >
-> *(write here)*
+> 1. Yes. The ill-conditioned matrices amplified the perturbation more than the well-conditioned matrices. The printed amplification factors are much larger for the bad matrices, so the same small change in $b$ produced a larger relative error in $x$.
+> 2. Yes. The effect was visible for both the $2\times 2$ example and the $10\times 10$ example. Even though the 10-by-10 matrices are larger, the pattern is the same: good conditioning leads to smaller amplification, while large condition number leads to bigger error growth.
+> 3. I learned that the 2-norm condition number measures how unevenly a matrix stretches different directions. A well-conditioned matrix changes all directions by about the same amount, while an ill-conditioned matrix stretches some directions much more than others. That is why a large condition number means input errors can be amplified strongly in the solution.
 
 ---
 
@@ -258,3 +350,9 @@ Check one:
 If you used AI, briefly describe how:
 
 > *(write here)*
+- [x] I used AI more substantially, and I verified the result myself.
+
+> I used AI tools to help generate explanations, debug Python code,
+> and organize the report structure. I verified the computations
+> and checked the results by myself.
+
