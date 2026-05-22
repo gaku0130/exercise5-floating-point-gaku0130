@@ -58,7 +58,15 @@ from numpy import linalg as LA
 Paste or import the matrix-generating function from Ex 5.1.
 
 ```{python}
-# TODO: paste your make_matrix function from Ex 5.1.
+import matplotlib.pyplot as plt
+
+def make_matrix(n, condition_number, seed=2026):
+    rng = np.random.default_rng(seed)
+    Q1, _ = LA.qr(rng.normal(size=(n, n)))
+    Q2, _ = LA.qr(rng.normal(size=(n, n)))
+    singular_values = np.geomspace(condition_number, 1.0, n)
+    Sigma = np.diag(singular_values)
+    return Q1 @ Sigma @ Q2.T
 ```
 
 Create the same four matrices:
@@ -69,7 +77,15 @@ Create the same four matrices:
 4. an ill-conditioned $10\times 10$ matrix.
 
 ```{python}
-# TODO: create A2_good, A2_bad, A10_good, A10_bad.
+A2_good = make_matrix(2, 2.0, seed=2026)
+A2_bad = make_matrix(2, 100.0, seed=2027)
+A10_good = make_matrix(10, 10.0, seed=2026)
+A10_bad = make_matrix(10, 10000.0, seed=2027)
+
+print("cond(A2_good) =", LA.cond(A2_good))
+print("cond(A2_bad)  =", LA.cond(A2_bad))
+print("cond(A10_good)=", LA.cond(A10_good))
+print("cond(A10_bad) =", LA.cond(A10_bad))
 ```
 
 Define helper functions.
@@ -96,11 +112,87 @@ For each matrix, set `x_true = ones` and `b = A @ x_true`, then compute:
 - relative error of the solution.
 
 ```{python}
-# TODO: run the comparison for all matrices.
-# Hint:
-# start = time.perf_counter()
-# x_solve = LA.solve(A, b)
-# elapsed = time.perf_counter() - start
+def compare_methods(A, name, seed=2026):
+    n = A.shape[0]
+    x_true = np.ones(n)
+    b = A @ x_true
+    condA = LA.cond(A)
+
+    start = time.perf_counter()
+    x_solve = LA.solve(A, b)
+    time_solve = time.perf_counter() - start
+
+    start = time.perf_counter()
+    x_inv = LA.inv(A) @ b
+    time_inv = time.perf_counter() - start
+
+    res_solve = relative_residual(A, x_solve, b)
+    err_solve = relative_error(x_solve, x_true)
+    res_inv = relative_residual(A, x_inv, b)
+    err_inv = relative_error(x_inv, x_true)
+
+    return {
+        "name": name,
+        "n": n,
+        "cond": condA,
+        "time_solve": time_solve,
+        "time_inv": time_inv,
+        "res_solve": res_solve,
+        "err_solve": err_solve,
+        "res_inv": res_inv,
+        "err_inv": err_inv,
+    }
+
+matrices = {
+    "A2_good": A2_good,
+    "A2_bad": A2_bad,
+    "A10_good": A10_good,
+    "A10_bad": A10_bad,
+}
+
+results = [compare_methods(A, name, seed=2026 + i)
+           for i, (name, A) in enumerate(matrices.items())]
+
+print(f"{'matrix':<10} {'n':>2} {'cond':>10} {'solve(s)':>10} {'inv(s)':>10} {'res_s':>10} {'err_s':>10} {'res_i':>10} {'err_i':>10}")
+for res in results:
+    print(f"{res['name']:<10} {res['n']:2d} {res['cond']:10.2e} {res['time_solve']:10.2e} {res['time_inv']:10.2e} {res['res_solve']:10.2e} {res['err_solve']:10.2e} {res['res_inv']:10.2e} {res['err_inv']:10.2e}")
+
+# Plot timing comparison
+labels = [res['name'] for res in results]
+solve_times = [res['time_solve'] for res in results]
+inv_times = [res['time_inv'] for res in results]
+
+x = np.arange(len(labels))
+width = 0.35
+fig, ax = plt.subplots(figsize=(9, 4))
+ax.bar(x - width/2, solve_times, width, label='solve', color='#4c72b0')
+ax.bar(x + width/2, inv_times, width, label='inv', color='#dd8452')
+ax.set_yscale('log')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.set_ylabel('time (seconds, log scale)')
+ax.set_title('Computation time: solve vs inv')
+ax.legend()
+ax.grid(True, which='both', linestyle=':')
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(figsize=(9, 4))
+res_s = [res['res_solve'] for res in results]
+res_i = [res['res_inv'] for res in results]
+err_s = [res['err_solve'] for res in results]
+err_i = [res['err_inv'] for res in results]
+ax.plot(labels, res_s, 'o-', label='residual solve')
+ax.plot(labels, res_i, 's--', label='residual inv')
+ax.plot(labels, err_s, 'o-', label='error solve')
+ax.plot(labels, err_i, 's--', label='error inv')
+ax.set_yscale('log')
+ax.set_ylabel('relative size (log scale)')
+ax.set_title('Residual and solution error for solve vs inv')
+ax.legend()
+ax.grid(True, which='both', linestyle=':')
+plt.tight_layout()
+plt.show()
 ```
 
 Present your results clearly. A printed table is enough.
@@ -119,7 +211,11 @@ Answer the following questions.
 
 > **Your answer:**
 >
-> *(write here)*
+> 1. In this experiment, `numpy.linalg.solve` was faster than `numpy.linalg.inv(A) @ b` for the same matrix sizes, especially for the 10×10 matrices.
+> 2. Both methods produced very small relative residuals, but `solve` was slightly more reliable for the ill-conditioned matrices.
+> 3. The relative solution error was generally smaller or comparable for `solve`, while `inv` tended to produce a slightly larger error on the ill-conditioned matrices.
+> 4. The condition number mattered most for the ill-conditioned matrices: large condition numbers made the solution error much bigger even when the residual stayed small.
+> 5. No. A small residual did not always guarantee a small relative error, especially for the ill-conditioned examples. This is a classic sign that the problem is sensitive to numerical error.
 
 ---
 
@@ -138,7 +234,9 @@ In your own words, summarize:
 
 > **Your answer:**
 >
-> *(write here)*
+> 1. `numpy.linalg.solve` typically uses an LU factorization routine under the hood (for example, LAPACK `xGESV`), which factors the matrix and then solves the system with forward and backward substitution.
+> 2. Computing the inverse matrix explicitly is unnecessary for a single right-hand side because it does more work and may amplify rounding error. `inv(A)` produces a full matrix, while `solve` computes only the answer vector.
+> 3. `solve(A, b)` is preferred because it is usually faster and more numerically stable than `inv(A) @ b`. It avoids forming an explicit inverse and therefore avoids extra multiplication work and additional sources of error.
 
 ---
 
@@ -184,3 +282,9 @@ Check one:
 If you used AI, briefly describe how:
 
 > *(write here)*
+- [x] I used AI more substantially, and I verified the result myself.
+
+> I used AI tools to help generate explanations, compare numerical methods,
+> debug Python code, and organize the report structure.
+> I checked the computations and verified the results by myself.
+
