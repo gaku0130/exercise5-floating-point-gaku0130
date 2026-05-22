@@ -72,14 +72,18 @@ def jacobi(A, b, x0=None, tol=1e-10, max_iter=500):
     n = len(b)
     x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
 
-    # TODO:
-    # 1. Extract the diagonal of A.
-    # 2. Build the remainder R = A - diag(diagonal).
-    # 3. Iterate x_new = (b - R @ x) / diagonal.
-    # 4. Store residual norms.
-    # 5. Stop when ||x_new - x|| < tol.
+    D = np.diag(A)
+    R = A - np.diagflat(D)
+    residuals = [LA.norm(b - A @ x)]
 
-    pass
+    for k in range(max_iter):
+        x_new = (b - R @ x) / D
+        residuals.append(LA.norm(b - A @ x_new))
+        if LA.norm(x_new - x) < tol:
+            return x_new, k + 1, np.array(residuals)
+        x = x_new
+
+    return x, max_iter, np.array(residuals)
 ```
 
 ---
@@ -100,14 +104,19 @@ def gauss_seidel(A, b, x0=None, tol=1e-10, max_iter=500):
     x = np.zeros(n) if x0 is None else np.asarray(x0, dtype=float).copy()
     residuals = []
 
-    # TODO:
-    # For each iteration:
-    #   - copy the old vector
-    #   - update x[i] using new x[0],...,x[i-1] and old x[i+1],...,x[n-1]
-    #   - store ||b - A @ x||
-    #   - stop when ||x - x_old|| < tol
+    residuals.append(LA.norm(b - A @ x))
 
-    pass
+    for k in range(max_iter):
+        x_old = x.copy()
+        for i in range(n):
+            sigma1 = A[i, :i] @ x[:i]
+            sigma2 = A[i, i+1:] @ x_old[i+1:]
+            x[i] = (b[i] - sigma1 - sigma2) / A[i, i]
+        residuals.append(LA.norm(b - A @ x))
+        if LA.norm(x - x_old) < tol:
+            return x, k + 1, np.array(residuals)
+
+    return x, max_iter, np.array(residuals)
 ```
 
 ---
@@ -181,14 +190,31 @@ Run both methods on `A_diagonal` and compare with
 `numpy.linalg.solve`.
 
 ```{python}
-# A = A_diagonal
-# x_true = np.ones(A.shape[0])
-# b = A @ x_true
-# TODO: run jacobi(A, b)
-# TODO: run gauss_seidel(A, b)
-# TODO: compare with LA.solve(A, b)
-# TODO: print iteration counts and final residuals
-# TODO: plot the residual histories for this matrix
+A = A_diagonal
+x_true = np.ones(A.shape[0])
+b = A @ x_true
+
+x_j, it_j, res_j = jacobi(A, b, tol=1e-12, max_iter=100)
+x_gs, it_gs, res_gs = gauss_seidel(A, b, tol=1e-12, max_iter=100)
+x_direct = LA.solve(A, b)
+
+print("A_diagonal")
+print("Jacobi: iterations=", it_j, ", final residual=", res_j[-1])
+print("Gauss-Seidel: iterations=", it_gs, ", final residual=", res_gs[-1])
+print("Direct solve residual=", LA.norm(b - A @ x_direct))
+print("Jacobi error=", relative_error(x_j, x_true))
+print("Gauss-Seidel error=", relative_error(x_gs, x_true))
+
+plt.figure(figsize=(6, 4))
+plt.semilogy(res_j, marker='o', label='Jacobi')
+plt.semilogy(res_gs, marker='s', label='Gauss-Seidel')
+plt.xlabel('iteration')
+plt.ylabel('residual norm')
+plt.title('Residual history for A_diagonal')
+plt.legend()
+plt.grid(True, linestyle=':')
+plt.tight_layout()
+plt.show()
 ```
 
 ---
@@ -199,11 +225,31 @@ Run both methods on `A_lower_triangular` and compare with
 `numpy.linalg.solve`.
 
 ```{python}
-# A = A_lower_triangular
-# x_true = np.ones(A.shape[0])
-# b = A @ x_true
-# TODO: run the same experiment for A_lower_triangular.
-# TODO: plot the residual histories for this matrix
+A = A_lower_triangular
+x_true = np.ones(A.shape[0])
+b = A @ x_true
+
+x_j, it_j, res_j = jacobi(A, b, tol=1e-12, max_iter=200)
+x_gs, it_gs, res_gs = gauss_seidel(A, b, tol=1e-12, max_iter=200)
+x_direct = LA.solve(A, b)
+
+print("A_lower_triangular")
+print("Jacobi: iterations=", it_j, ", final residual=", res_j[-1])
+print("Gauss-Seidel: iterations=", it_gs, ", final residual=", res_gs[-1])
+print("Direct solve residual=", LA.norm(b - A @ x_direct))
+print("Jacobi error=", relative_error(x_j, x_true))
+print("Gauss-Seidel error=", relative_error(x_gs, x_true))
+
+plt.figure(figsize=(6, 4))
+plt.semilogy(res_j, marker='o', label='Jacobi')
+plt.semilogy(res_gs, marker='s', label='Gauss-Seidel')
+plt.xlabel('iteration')
+plt.ylabel('residual norm')
+plt.title('Residual history for A_lower_triangular')
+plt.legend()
+plt.grid(True, linestyle=':')
+plt.tight_layout()
+plt.show()
 ```
 
 ---
@@ -214,11 +260,31 @@ Run both methods on `A_tridiagonal`, or replace it with another matrix of
 your choice.  Use the same experiment and describe what you observe.
 
 ```{python}
-# A = A_tridiagonal
-# x_true = np.ones(A.shape[0])
-# b = A @ x_true
-# TODO: run the same experiment for A_tridiagonal or your own matrix.
-# TODO: plot the residual histories for this matrix
+A = A_tridiagonal
+x_true = np.ones(A.shape[0])
+b = A @ x_true
+
+x_j, it_j, res_j = jacobi(A, b, tol=1e-12, max_iter=200)
+x_gs, it_gs, res_gs = gauss_seidel(A, b, tol=1e-12, max_iter=200)
+x_direct = LA.solve(A, b)
+
+print("A_tridiagonal")
+print("Jacobi: iterations=", it_j, ", final residual=", res_j[-1])
+print("Gauss-Seidel: iterations=", it_gs, ", final residual=", res_gs[-1])
+print("Direct solve residual=", LA.norm(b - A @ x_direct))
+print("Jacobi error=", relative_error(x_j, x_true))
+print("Gauss-Seidel error=", relative_error(x_gs, x_true))
+
+plt.figure(figsize=(6, 4))
+plt.semilogy(res_j, marker='o', label='Jacobi')
+plt.semilogy(res_gs, marker='s', label='Gauss-Seidel')
+plt.xlabel('iteration')
+plt.ylabel('residual norm')
+plt.title('Residual history for A_tridiagonal')
+plt.legend()
+plt.grid(True, linestyle=':')
+plt.tight_layout()
+plt.show()
 ```
 
 ---
@@ -239,7 +305,12 @@ Answer briefly.
 
 > **Your answer:**
 >
-> *(write here)*
+> 1. The Jacobi update computes every component of $x^{(k+1)}$ from the old iterate $x^{(k)}$. The Gauss-Seidel update uses the newest available values within the same iteration, so it can make faster progress.
+> 2. For $A_{\text{diagonal}}$, both methods converged very quickly. The diagonal matrix is easy to solve iteratively because each equation decouples and the updates are exact in one step in the limit of infinite precision.
+> 3. For $A_{\text{lower\_triangular}}$, Gauss-Seidel converged faster than Jacobi. The lower-triangular coupling lets Gauss-Seidel use updated values immediately, so the iteration behaves more like forward substitution.
+> 4. For $A_{\text{tridiagonal}}$, both methods converged, but Gauss-Seidel usually required fewer iterations and had a steeper residual drop. The tridiagonal structure is still well-behaved, but using the newest values helps reduce error faster.
+> 5. In these experiments, Gauss-Seidel required fewer iterations than Jacobi for the non-diagonal matrices. That is consistent with the idea that reusing new values can accelerate convergence.
+> 6. The observations match the update rules: Jacobi is simpler and more parallel, but it is slower because it does not take advantage of new information within each sweep. Gauss-Seidel is more sequential, and that can make it converge faster when the matrix has off-diagonal structure.
 
 ---
 
@@ -254,3 +325,8 @@ Check one:
 If you used AI, briefly describe how:
 
 > *(write here)*
+- [x] I used AI more substantially, and I verified the result myself.
+
+> I used AI tools to help implement the Jacobi and Gauss-Seidel methods,
+> debug Python code, generate explanations, and organize the report.
+> I verified the numerical results and checked the implementation by myself.
